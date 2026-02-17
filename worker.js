@@ -100,9 +100,8 @@ async function sendTelegram(symbol, rsi, price, diffMA, vol) {
     alertCounter.set(symbol, count);
 
     // Format Pesan Sesuai Permintaan
-    const message = `🚀 *RSI: ${rsi.toFixed(2)} | ALERT #${count}* 🚀\n` +
+    const message = `🚀  *#${symbol} RSI: ${rsi.toFixed(2)} | #${count}* 🚀\n` +
         `━━━━━━━━━━━━━━━━\n` +
-        `🪙 Asset: *#${symbol}*\n` +
         `📊 Momentum: *${rsi.toFixed(2)}*\n` +
         `🛡️ vs MA25: *+${diffMA.toFixed(2)}%*\n` +
         `💰 Harga: *Rp ${price.toLocaleString('id-ID')}*\n` +
@@ -110,8 +109,6 @@ async function sendTelegram(symbol, rsi, price, diffMA, vol) {
         `━━━━━━━━━━━━━━━━\n` +
         `💡 *Status:* Uptrend Terdeteksi\n` +
         `⏰ ${new Date().toLocaleTimeString('id-ID')} WIB\n`;
-       
-
     try {
         await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`, {
             chat_id: process.env.TELEGRAM_CHAT_ID,
