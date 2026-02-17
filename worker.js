@@ -3,7 +3,7 @@ const axios = require('axios');
 const { RSI, SMA } = require('technicalindicators');
 
 // Konfigurasi Strategi
-const MIN_VOLUME = 1500000000;      // Sesuai permintaan Anda: 1.5 Miliar
+const MIN_VOLUME = 1200000000;      // Sesuai permintaan Anda: 1.5 Miliar
 const RSI_LOWER = 50; 
 const RSI_UPPER = 100;              // Dibuka sampai 100 agar lebih sensitif
 const COOLDOWN_MS = 30 * 60 * 1000; // Cooldown 30 menit
