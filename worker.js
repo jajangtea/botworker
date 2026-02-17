@@ -109,8 +109,8 @@ async function sendTelegram(symbol, rsi, price, diffMA, vol) {
         `🌊 Vol 24h: *Rp ${(vol/1e9).toFixed(2)} Miliar*\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `💡 *Status:* Uptrend Terdeteksi\n` +
-        `⏰ ${new Date().toLocaleTimeString('id-ID')} WIB\n` +
-        `🔗 [Chart Indodax](https://indodax.com/market/${symbol}IDR)`;
+        `⏰ ${new Date().toLocaleTimeString('id-ID')} WIB\n`;
+       
 
     try {
         await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`, {
