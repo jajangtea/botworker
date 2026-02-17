@@ -117,6 +117,7 @@ async function sendTelegram(symbol, rsi, price, diffMA, vol) {
         });
     } catch (e) {
         console.error(`❌ Gagal kirim Telegram #${symbol}`);
+        console.log("Token:", process.env.TELEGRAM_TOKEN? "Ada" : "Kosong");
     }
 }
 
