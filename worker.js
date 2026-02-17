@@ -3,21 +3,31 @@ const axios = require('axios');
 const { RSI, SMA } = require('technicalindicators');
 
 // Konfigurasi Strategi
-const MIN_VOLUME = 1200000000; // Naikkan ke 500 Juta agar koin lebih berkualitas
-const RSI_LOWER = 50;         // Sinyal beli jika RSI di atas 50 (Uptrend)
-const RSI_UPPER = 100;         // Jangan beli jika RSI di atas 70 (Pucuk/Overbought)
-const COOLDOWN_MS = 30 * 60 * 1000; // Cooldown 30 menit per koin agar tidak spam
+const MIN_VOLUME = 1500000000;      // Sesuai permintaan Anda: 1.5 Miliar
+const RSI_LOWER = 50; 
+const RSI_UPPER = 100;              // Dibuka sampai 100 agar lebih sensitif
+const COOLDOWN_MS = 30 * 60 * 1000; // Cooldown 30 menit
 
-const alertCounter = new Map();
-const lastAlertTime = new Map();
+let alertCounter = new Map();
+let lastAlertTime = new Map();
+let lastResetDate = new Date().toDateString();
 
 /**
- * Fungsi hitung teknikal dengan menyuntikkan harga real-time
+ * Reset counter jika sudah ganti hari (Jam 12 Malam)
  */
+function checkMidnightReset() {
+    const today = new Date().toDateString();
+    if (lastResetDate !== today) {
+        console.log("🕛 Jam 12 Malam: Reset semua counter koin.");
+        alertCounter.clear();
+        lastResetDate = today;
+    }
+}
+
 async function getTechnicalData(symbol, priceNow) {
     try {
         const to = Math.floor(Date.now() / 1000);
-        const from = to - (60 * 60 * 48); // 48 jam data
+        const from = to - (60 * 60 * 48); 
         const url = `https://indodax.com/tradingview/history_v2?from=${from}&symbol=${symbol}IDR&tf=60&to=${to}`;
 
         const response = await axios.get(url, { 
@@ -28,7 +38,6 @@ async function getTechnicalData(symbol, priceNow) {
         const candles = response.data;
         if (!Array.isArray(candles) || candles.length < 30) return null;
 
-        // Ambil data close dan tambahkan harga saat ini (Real-time injection)
         let closes = candles.map(c => Number(c.Close));
         closes.push(priceNow); 
 
@@ -40,14 +49,12 @@ async function getTechnicalData(symbol, priceNow) {
             ma25: maValues[maValues.length - 1]
         };
     } catch (e) {
-        if (e.response && e.response.status === 429) {
-            console.error("⚠️ Terdeteksi Rate Limit (429). Melambatkan permintaan...");
-        }
         return null;
     }
 }
 
 async function runScanner() {
+    checkMidnightReset(); // Cek reset setiap kali scan dimulai
     console.log(`\n--- [${new Date().toLocaleTimeString()}] MEMULAI SCAN ---`);
 
     try {
@@ -63,11 +70,9 @@ async function runScanner() {
             const priceNow = Number(d.last);
             const volIdr = Number(d.vol_idr);
 
-            // FILTER 1: Volume & Cooldown (Cek ini dulu sebelum panggil API Candle)
             const now = Date.now();
             if (volIdr > MIN_VOLUME && (now - (lastAlertTime.get(symbol) || 0) > COOLDOWN_MS)) {
                 
-                // Jeda 2 detik antar koin untuk menghindari Error 429
                 await new Promise(r => setTimeout(r, 2000)); 
 
                 const tech = await getTechnicalData(symbol, priceNow);
@@ -76,12 +81,8 @@ async function runScanner() {
                 const { rsi, ma25 } = tech;
                 const diffMA = ((priceNow - ma25) / ma25) * 100;
 
-                // FILTER 2: Logika Strategi (Lebih Ketat & Efektif)
-                // 1. Harga harus di atas MA25 (Tren naik)
-                // 2. RSI harus di antara 50 - 70 (Momentum kuat tapi belum klimaks)
                 if (priceNow > ma25 && rsi >= RSI_LOWER && rsi <= RSI_UPPER) {
-                    
-                    console.log(`🎯 [${symbol}] Memenuhi Syarat! RSI: ${rsi.toFixed(2)}`);
+                    console.log(`🎯 [#${symbol}] RSI: ${rsi.toFixed(2)} | Terdeteksi!`);
                     await sendTelegram(symbol, rsi, priceNow, diffMA, volIdr);
                     lastAlertTime.set(symbol, now);
                 }
@@ -94,18 +95,21 @@ async function runScanner() {
 }
 
 async function sendTelegram(symbol, rsi, price, diffMA, vol) {
+    // Logic Counter per Koin
     const count = (alertCounter.get(symbol) || 0) + 1;
     alertCounter.set(symbol, count);
 
-    const message = `🚀 *SINYAL VALID DETECTED* 🚀\n` +
+    // Format Pesan Sesuai Permintaan
+    const message = `🚀 *RSI: ${rsi.toFixed(2)} | ALERT #${count}* 🚀\n` +
         `━━━━━━━━━━━━━━━━\n` +
         `🪙 Asset: *#${symbol}*\n` +
-        `📊 RSI (Real-time): *${rsi.toFixed(2)}*\n` +
-        `🛡️ Posisi vs MA25: *+${diffMA.toFixed(2)}%*\n` +
+        `📊 Momentum: *${rsi.toFixed(2)}*\n` +
+        `🛡️ vs MA25: *+${diffMA.toFixed(2)}%*\n` +
         `💰 Harga: *Rp ${price.toLocaleString('id-ID')}*\n` +
         `🌊 Vol 24h: *Rp ${(vol/1e9).toFixed(2)} Miliar*\n` +
         `━━━━━━━━━━━━━━━━\n` +
-        `💡 *Analisa:* Uptrend terkonfirmasi. RSI menunjukkan momentum positif yang stabil.\n` +
+        `💡 *Status:* Uptrend Terdeteksi\n` +
+        `⏰ ${new Date().toLocaleTimeString('id-ID')} WIB\n` +
         `🔗 [Chart Indodax](https://indodax.com/market/${symbol}IDR)`;
 
     try {
@@ -115,11 +119,9 @@ async function sendTelegram(symbol, rsi, price, diffMA, vol) {
             parse_mode: "Markdown"
         });
     } catch (e) {
-        console.error("❌ Gagal kirim Telegram");
+        console.error(`❌ Gagal kirim Telegram #${symbol}`);
     }
 }
 
-// Interval diperpanjang ke 5 menit agar tidak dianggap spamming oleh server
-// Strategi 1 Jam (1H) tidak butuh cek tiap menit.
 setInterval(runScanner, 5 * 60 * 1000); 
 runScanner();
