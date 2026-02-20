@@ -1,1 +1,12 @@
+# Abaikan folder library
+node_modules/
+
+# Abaikan file rahasia (Token Telegram, dll)
 .env
+
+# Abaikan log PM2 jika ada di folder project
+*.log
+
+# Abaikan file sampah sistem
+.DS_Store
+Thumbs.db
